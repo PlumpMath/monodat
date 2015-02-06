@@ -1,0 +1,70 @@
+start = decl+
+
+decl = d:(assembly / custom / ver / publickeytoken / namespace / hash / mresource / module / class / field / method / maxstack / locals / param / override) space { console.log(d); return d }
+
+override = '.override' a:lineattribs* { return { override: { attribs:a} } }
+
+param = '.param [' i:integer ']' { return { param: i } } 
+maxstack = '.maxstack' space i:integer { return { maxstack:i } }
+locals = '.locals' space a:notcurly* b:paren { return { locals: { attribs:a, body:b} } }
+
+method = '.method' space a:lineattribs '\n'
+            space i:'instance'? space 'default' space c:'class'? space r:type n:notspace space args:paren space lineattribs space b:curly
+            { return { method : {
+              attribs:a,
+              ret:r,
+              name:n,
+              args:args,
+              body:b } } }
+
+field = '.field' space a:lineattribs '\n' { return { field: { name:a[a.length-1], attribs:a} } }
+
+class = '.class' space a:lineattribs '\n'
+          space 'extends' space t:type
+          i:( 'implements' linespace+ ift:type ifts:(',' linespace+ 'class'? linespace* ift:type { return ift })+ space { return [ift].concat(ifts) })?
+          b:curly
+          { return { class: {
+            attribs:a,
+            name:a[a.length-1],
+            interfaces:i,
+            super:t,
+            body:b } } }
+
+module = '.module' space n:notcurly { return { module:n } }
+mresource = '.mresource' space a:notcurly* space b:curly { return { mresource: { attribs:a, body:b } } }
+hash = '.hash' space 'algorithm' space '0x' h:hex { return { hashAlgorithm:h } }
+custom = '.custom' space a:notcurly* t:type '::' space s:string k:paren space '=' space v:paren space { return { custom:{ attribs:a, target:t, field:s, cast:k, value:v } } }
+publickeytoken = '.publickeytoken = ' space t:paren { return { publickeytoken:t } }
+ver = '.ver' space a:integer ':' b:integer ':' c:integer ':' d:integer { return { ver: [a, b, c, d] } }
+assembly = '.assembly' space a:notcurly* b:curly { return { assembly:{ attribs:a, body:b } } }
+namespace = '.namespace' space n:notcurly b:curly { return { namespace:{ name:n, body:b } } }
+
+generic = '.' d:notcurly a:notcurly* b:curly? { return {decl:('.' + d), attribs:a, body:b}}
+
+lineattribs = (a:notspace linespace* { return a })*
+
+curly = '{' space b:(decl / il)* '}' space { console.log(b); return b }
+paren = '(' p:[^\)]* ')' { return p.join('').trim() }
+
+type = a:('[' a:[^\]]+ ']' { return a })? n:[a-zA-Z0-9\-_\.`<>!]+ space { return { assy:a, name:n } }
+
+il = 'IL_' hex:hex ':' linespace* b:(il_switch / il_generic) '\n' space { return { il: { hex:hex, op:b.op, args:b.args } } }
+il_switch = op:'switch' linespace* args:paren { return { op:op, args:args } }
+il_generic = op:notnewline args:notnewline* { return { op:op, args:args } }
+
+hex = h:[a-f0-9]+ { return h.join('') }
+
+notdot = i:[^\.\{\}\n ]+ space { return i.join('').trim() }
+notcurly = i:[^\{\}\[\]\(\)\n ]+ space { return i.join('').trim() }
+notnewline = i:[^\n ]+ linespace* { return i.join('').trim() }
+notspace = i:[^\n ]+ { return i.join('').trim() }
+
+comment = '//' [^\n]* '\n'
+newline = '\n'
+linespace = [ \t]
+whitespace = (linespace / newline)
+SPACE = (whitespace / comment)+
+space = (whitespace / comment)*
+
+integer = i:[0-9]+ { return i.join('') }
+string = "'" s:[^']* "'" space { return s.join('') }
