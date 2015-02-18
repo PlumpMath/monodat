@@ -1,7 +1,7 @@
 var fs = require("fs");
 var peg = require("pegjs");
 
-var file = "dump.cil";
+var file = process.argv[2];
 
 var grammar = peg.buildParser(fs.readFileSync("cil.peg", "utf8"));
 var cil = fs.readFileSync(file, "utf8");
